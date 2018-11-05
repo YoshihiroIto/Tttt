@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime;
+using System.Text;
 using System.Windows;
 using Tttt.App;
 using Tttt.Foundation.Interface;
@@ -44,6 +46,8 @@ namespace Tttt.Gui.Windows
             _serviceProvider.GetInstance<IDisposableChecker>().Start(m => MessageBox.Show(m));
             _serviceProvider.GetInstance<App.App>().Setup(_commandLine);
 
+            SetupLog();
+
             MainWindow = new MainWindow { DataContext = _serviceProvider.GetInstance<MainWindowViewModel>() };
             MainWindow.Show();
         }
@@ -54,6 +58,53 @@ namespace Tttt.Gui.Windows
             _serviceProvider.Dispose();
 
             base.OnExit(e);
+        }
+
+        private void SetupLog()
+        {
+            Trace.Listeners.Add(new WpfTraceListener("Trace", _serviceProvider.GetInstance<ILogger>()));
+            Debug.Listeners.Add(new WpfTraceListener("Debug", _serviceProvider.GetInstance<ILogger>()));
+
+            PresentationTraceSources.Refresh();
+            PresentationTraceSources.DataBindingSource.Listeners.Add(new WpfTraceListener("WPF", _serviceProvider.GetInstance<ILogger>()));
+            PresentationTraceSources.DataBindingSource.Switch.Level = SourceLevels.Error | SourceLevels.Warning;
+        }
+
+        private class WpfTraceListener : TraceListener
+        {
+            private readonly string _sign;
+            private readonly ILogger _logger;
+            private readonly StringBuilder _sb = new StringBuilder();
+
+            public WpfTraceListener(string sign, ILogger logger)
+            {
+                _sign = sign;
+                _logger = logger;
+            }
+            
+            public override void Write(string message)
+            {
+                _sb.Append(message);
+            }
+
+            public override void WriteLine(string message)
+            {
+                _sb.Append(message);
+
+                var line = _sb.ToString();
+
+                if (line.IndexOf("error", StringComparison.InvariantCultureIgnoreCase) != -1)
+                    _logger.Error("[" + _sign + "]: " + line);
+
+                else
+                if (line.IndexOf("warn", StringComparison.InvariantCultureIgnoreCase) != -1)
+                    _logger.Warn("[" + _sign + "]: " + line);
+
+                else
+                    _logger.Trace("[" + _sign + "]: " + line);
+
+                _sb.Clear();
+            }
         }
     }
 }
