@@ -26,7 +26,7 @@ namespace Tttt.Gui.Windows.Test
         [Fact]
         public void StartEnd()
         {
-            using (var appDriver = new AppDriver($"--config {AppConfigFilePath}", 5000))
+            using (var appDriver = new AppDriver($"--config {AppConfigFilePath}", 60 * 1000))
             {
                 appDriver.MainWindow.Close();
             }
